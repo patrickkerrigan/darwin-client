@@ -1,4 +1,4 @@
-package uk.co.patrickkerrigan.darwin
+package uk.patrickkerrigan.darwin
 
 import java.io.ByteArrayInputStream
 import java.net.InetSocketAddress
