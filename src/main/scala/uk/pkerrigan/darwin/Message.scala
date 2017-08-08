@@ -17,16 +17,21 @@ sealed trait Message {
 }
 case class ScheduleUpdate(origin: String, runId: String, locations: List[Location]) extends Message
 
+case class InvalidMessage()
+
 object Message {
-  def parseMessage(message: String): Option[Message] =
+  def parseMessage(message: String): Either[InvalidMessage, Message] =
     (XML.loadString(message) \ "uR")
       .headOption
       .flatMap(this.parseUpdateResponse)
+      .toRight(InvalidMessage())
 
   private def parseUpdateResponse(updateResponse: Node): Option[Message] =
-    updateResponse.child
-      .headOption
-      .flatMap(this.parseMessageType(updateResponse.attribute("updateOrigin").head.text)(_))
+    for {
+      child <- updateResponse.child.headOption
+      origin <- updateResponse.attribute("updateOrigin")
+      result <- this.parseMessageType(origin.text)(child)
+    } yield result
 
   private def parseMessageType(origin: String)(messageContent: Node): Option[Message] =
     messageContent.label match {
@@ -38,7 +43,8 @@ object Message {
     val locations = (messageContent \ "Location")
       .map(this.parseLocation)
       .toList
-    Some(ScheduleUpdate(origin, messageContent.attribute("rid").head.text, locations))
+    messageContent.attribute("rid")
+      .map( rid => ScheduleUpdate(origin, rid.text, locations))
   }
 
   private def parseLocation(location: Node): Location = {
