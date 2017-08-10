@@ -14,7 +14,7 @@ sealed trait Location {
 
 case class Station(tiploc: String, arrivalTime: Time, departureTime: Time) extends Location
 
-case class Waypoint(tiploc: String, passTime: Time) extends Location
+case class PassingPoint(tiploc: String, passTime: Time) extends Location
 
 case class Origin(tiploc: String, departureTime: Time) extends Location
 
@@ -24,7 +24,7 @@ sealed trait Message {
   def origin: String
 }
 
-case class ScheduleUpdate(origin: String, runId: String, locations: List[Location]) extends Message
+case class TrainStatus(origin: String, runId: String, locations: List[Location]) extends Message
 
 case class InvalidMessage(why: String)
 
@@ -45,15 +45,15 @@ object Message {
 
   private def parseMessageType(origin: String)(messageContent: Node): Either[InvalidMessage, Message] =
     messageContent.label match {
-      case "TS" => this.parseSchedule(origin)(messageContent)
-      case _ => Left(InvalidMessage("Unsupported message type"))
+      case "TS" => this.parseTrainStatus(origin)(messageContent)
+      case _ => Left(InvalidMessage(s"Unsupported message type ${messageContent.label}"))
     }
 
-  private def parseSchedule(origin: String)(messageContent: Node): Either[InvalidMessage, ScheduleUpdate] =
+  private def parseTrainStatus(origin: String)(messageContent: Node): Either[InvalidMessage, TrainStatus] =
     for {
       rid <- messageContent.attribute("rid").toRight(InvalidMessage("No running ID"))
       locations <- this.getLocations(messageContent)
-    } yield ScheduleUpdate(origin, rid.text, locations)
+    } yield TrainStatus(origin, rid.text, locations)
 
   private def getLocations(message: Node): Either[InvalidMessage, List[Location]] =
     (message \ "Location").map(this.parseLocation).foldLeft[Either[InvalidMessage, List[Location]]](Right(List.empty)) {
@@ -70,7 +70,7 @@ object Message {
           case (Some(arr), Some(dep), None) => Right(Station(tiploc.text, arr, dep))
           case (None, Some(dep), None) => Right(Origin(tiploc.text, dep))
           case (Some(arr), None, None) => Right(Destination(tiploc.text, arr))
-          case (None, None, Some(pass)) => Right(Waypoint(tiploc.text, pass))
+          case (None, None, Some(pass)) => Right(PassingPoint(tiploc.text, pass))
           case _ => Left(InvalidMessage("Unknown location type"))
         }
       })
