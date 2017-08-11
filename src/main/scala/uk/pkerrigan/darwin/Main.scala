@@ -32,6 +32,6 @@ object Main extends App {
 
   stompSource
     .mapConcat(b => b.body.map(gzDecode).toList)
-    .map(Message.parseMessage)
+    .map(MessageParser.fromString)
     .runForeach(println(_))
 }
